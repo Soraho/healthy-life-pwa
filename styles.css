@@ -167,6 +167,7 @@ main {
 .tap-zone,
 .leaderboard-section,
 .today-section,
+.season-feed-section,
 .history-section,
 .sync-section {
   padding: 16px;
@@ -200,6 +201,10 @@ input[type="datetime-local"] {
   padding: 0 12px;
   background: var(--surface);
   color: var(--ink);
+}
+
+.quick-note-label {
+  margin-top: 12px;
 }
 
 .helper-text {
@@ -274,6 +279,7 @@ input[type="color"] {
 
 .leaderboard,
 .timeline,
+.season-feed,
 .history-list {
   display: grid;
   gap: 10px;
@@ -283,7 +289,8 @@ input[type="color"] {
 }
 
 .rank-row,
-.timeline-row {
+.timeline-row,
+.feed-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -327,11 +334,44 @@ input[type="color"] {
   grid-template-columns: 1fr auto;
 }
 
+.feed-row {
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+}
+
+.feed-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--surface);
+  font-weight: 950;
+}
+
+.feed-row strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.feed-note {
+  margin: 4px 0;
+  color: var(--ink);
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.feed-note.muted {
+  color: var(--muted);
+  font-weight: 750;
+}
+
 .timeline-row p {
   font-weight: 850;
 }
 
-.timeline-row time {
+.timeline-row time,
+.feed-row time {
   color: var(--muted);
   font-size: 13px;
 }
@@ -500,6 +540,7 @@ dialog::backdrop {
   }
 
   .status-band,
+  .season-feed-section,
   .history-section,
   .sync-section,
   .tools-section {

@@ -16,7 +16,7 @@
         <div class="brand">
           <img src="./assets/icon.svg" alt="" class="brand-mark" />
           <div>
-            <p class="eyebrow">每月 18 號換季</p>
+            <p class="eyebrow">每月 19-18 號一季</p>
             <h1>健康生活</h1>
           </div>
         </div>
@@ -50,8 +50,11 @@
               <small>點一下就加 1</small>
             </span>
           </button>
+          <label class="quick-note-label" for="quickNote">
+            備註
+            <input id="quickNote" type="text" maxlength="40" placeholder="例：帶薪拉、壓線一大、咖啡救我" />
+          </label>
           <div class="quick-actions">
-            <button id="addNoteButton" type="button">補一句</button>
             <button id="undoButton" type="button">扣回剛剛那次</button>
           </div>
         </section>
@@ -76,6 +79,16 @@
             <button class="small-button ghost" id="manualAddButton" type="button">補記</button>
           </div>
           <ul class="timeline" id="todayList"></ul>
+        </section>
+
+        <section class="season-feed-section" aria-labelledby="seasonFeedTitle">
+          <div class="section-heading">
+            <div>
+              <p class="label">賽況</p>
+              <h2 id="seasonFeedTitle">當季賽況</h2>
+            </div>
+          </div>
+          <ul class="season-feed" id="seasonFeed"></ul>
         </section>
 
         <section class="history-section" aria-labelledby="historyTitle">

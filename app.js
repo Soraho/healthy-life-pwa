@@ -227,10 +227,11 @@ const els = {
   daysLeft: $("#daysLeft"),
   syncState: $("#syncState"),
   quickAdd: $("#quickAdd"),
-  addNoteButton: $("#addNoteButton"),
+  quickNote: $("#quickNote"),
   undoButton: $("#undoButton"),
   leaderboard: $("#leaderboard"),
   todayList: $("#todayList"),
+  seasonFeed: $("#seasonFeed"),
   historySelect: $("#historySelect"),
   historyCard: $("#historyCard"),
   roomCode: $("#roomCode"),
@@ -307,9 +308,9 @@ function normalizeRoom(value) {
 function getSeasonBounds(date = new Date()) {
   const year = date.getFullYear();
   const month = date.getMonth();
-  const startsThisMonth = date.getDate() >= 18;
-  const start = startsThisMonth ? new Date(year, month, 18) : new Date(year, month - 1, 18);
-  const end = startsThisMonth ? new Date(year, month + 1, 18) : new Date(year, month, 18);
+  const startsThisMonth = date.getDate() >= 19;
+  const start = startsThisMonth ? new Date(year, month, 19) : new Date(year, month - 1, 19);
+  const end = startsThisMonth ? new Date(year, month + 1, 19) : new Date(year, month, 19);
   return { start, end };
 }
 
@@ -379,6 +380,7 @@ function render({ fromRemote = false } = {}) {
   renderMemberSelects();
   renderLeaderboard();
   renderToday();
+  renderSeasonFeed();
   renderHistory();
   persistState({ sync: !fromRemote });
 }
@@ -424,6 +426,10 @@ function renderLeaderboard() {
     .join("");
 }
 
+function formatDateLabel(date) {
+  return `${date.getMonth() + 1}/${date.getDate()} ${formatTime(date)}`;
+}
+
 function renderToday() {
   const today = new Date();
   const entries = state.entries
@@ -445,6 +451,34 @@ function renderToday() {
           <div>
             <p>${escapeHtml(name)}${note}</p>
             <time>${formatTime(new Date(entry.ts))}</time>
+          </div>
+          <button class="delete-entry" data-delete="${entry.id}" type="button" aria-label="刪除這筆">×</button>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+function renderSeasonFeed() {
+  const entries = seasonEntries().sort((a, b) => new Date(b.ts) - new Date(a.ts));
+
+  if (!entries.length) {
+    els.seasonFeed.innerHTML = `<li class="timeline-row empty">本季還沒有人開胡</li>`;
+    return;
+  }
+
+  els.seasonFeed.innerHTML = entries
+    .map((entry) => {
+      const member = getMember(entry.memberId);
+      const name = member?.name || "神秘成員";
+      const note = entry.note ? `<p class="feed-note">${escapeHtml(entry.note)}</p>` : `<p class="feed-note muted">沒有備註，只有默默健康</p>`;
+      return `
+        <li class="feed-row">
+          <div class="feed-avatar" style="background:${member?.color || "#486a9a"}">${escapeHtml(name.slice(0, 1))}</div>
+          <div>
+            <strong>${escapeHtml(name)}</strong>
+            ${note}
+            <time>${formatDateLabel(new Date(entry.ts))}</time>
           </div>
           <button class="delete-entry" data-delete="${entry.id}" type="button" aria-label="刪除這筆">×</button>
         </li>
@@ -601,11 +635,11 @@ els.saveRoomButton.addEventListener("click", async () => {
 });
 
 els.quickAdd.addEventListener("click", () => {
-  addEntry();
+  addEntry({ note: els.quickNote.value });
+  els.quickNote.value = "";
   showToast("已加 1，健康生活持續推進");
 });
 
-els.addNoteButton.addEventListener("click", () => openEntryDialog({ withNote: true }));
 els.manualAddButton.addEventListener("click", () => openEntryDialog());
 
 els.undoButton.addEventListener("click", () => {
@@ -660,6 +694,14 @@ els.saveMemberButton.addEventListener("click", () => {
 });
 
 els.todayList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-delete]");
+  if (!button) return;
+  state.entries = state.entries.filter((entry) => entry.id !== button.dataset.delete);
+  render();
+  showToast("已刪除這筆");
+});
+
+els.seasonFeed.addEventListener("click", (event) => {
   const button = event.target.closest("[data-delete]");
   if (!button) return;
   state.entries = state.entries.filter((entry) => entry.id !== button.dataset.delete);
