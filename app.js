@@ -4,11 +4,13 @@ const DEFAULT_ROOM = "healthy-life";
 const APP_VERSION = "2026.06.23.4";
 const VERSION_SEEN_KEY = "healthy-life-seen-version";
 const MONTHLY_NOTICE_KEY = "healthy-life-monthly-notice";
+const CLIENT_ID_KEY = "healthy-life-client-id";
 
 const updateNotes = [
   "左上角圖示可以點擊更換，更新後會同步給同房間的人。",
   "當季賽況改成可收合戰報，介面比較不會被紀錄淹沒。",
   "18 號會提醒最後衝刺，19 號會提醒新排行榜出爐。",
+  "啟用通知後，有人新增紀錄時會跳出系統通知。",
 ];
 
 const defaultMembers = [
@@ -314,6 +316,7 @@ const els = {
   saveRoomButton: $("#saveRoomButton"),
   manualAddButton: $("#manualAddButton"),
   addMemberButton: $("#addMemberButton"),
+  enableNotificationsButton: $("#enableNotificationsButton"),
   exportButton: $("#exportButton"),
   importInput: $("#importInput"),
   iconUploadButton: $("#iconUploadButton"),
@@ -332,6 +335,7 @@ const els = {
   entryTime: $("#entryTime"),
   entryNote: $("#entryNote"),
   saveEntryButton: $("#saveEntryButton"),
+  deductEntryButton: $("#deductEntryButton"),
   memberName: $("#memberName"),
   memberColor: $("#memberColor"),
   saveMemberButton: $("#saveMemberButton"),
@@ -343,6 +347,7 @@ let deferredInstallPrompt = null;
 let state = loadState();
 let roomCode = localStorage.getItem(ROOM_KEY) || DEFAULT_ROOM;
 let firebaseConfig = null;
+let clientId = getClientId();
 let remote = {
   enabled: false,
   ready: false,
@@ -351,7 +356,17 @@ let remote = {
   set: null,
   unsubscribe: null,
   saveTimer: null,
+  knownEntryIds: new Set(),
 };
+
+function getClientId() {
+  let id = localStorage.getItem(CLIENT_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(CLIENT_ID_KEY, id);
+  }
+  return id;
+}
 
 function loadState() {
   const fallback = {
@@ -627,11 +642,7 @@ function renderLeaderboard() {
             <p class="rank-title">${escapeHtml(title)}</p>
             <p class="last-note">${lastNote ? `上次：${escapeHtml(lastNote)}` : "上次：還沒有備註"}</p>
           </div>
-          <div class="rank-controls">
-            <button class="mini-adjust" data-adjust="-1" data-member="${member.id}" type="button" aria-label="${escapeHtml(member.name)}減一">−</button>
-            <div class="count">${member.count}<small> 次</small></div>
-            <button class="mini-adjust" data-adjust="1" data-member="${member.id}" type="button" aria-label="${escapeHtml(member.name)}加一">＋</button>
-          </div>
+          <div class="count">${member.count}<small> 次</small></div>
         </li>
       `;
     })
@@ -761,9 +772,54 @@ function addEntry({ memberId = state.activeMemberId, ts = new Date().toISOString
     memberId,
     ts,
     note: note.trim(),
+    sourceId: clientId,
   });
   state.activeMemberId = memberId;
   render();
+}
+
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    showToast("這個瀏覽器不支援通知");
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  showToast(permission === "granted" ? "通知已啟用" : "通知沒有開啟");
+}
+
+async function showSystemNotification(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, {
+        body,
+        icon: state.appIcon || "./assets/icon.svg",
+        badge: "./assets/icon.svg",
+      });
+      return;
+    }
+    new Notification(title, { body, icon: state.appIcon || "./assets/icon.svg" });
+  } catch {
+    new Notification(title, { body, icon: state.appIcon || "./assets/icon.svg" });
+  }
+}
+
+function rememberEntryIds(entries = []) {
+  remote.knownEntryIds = new Set(entries.map((entry) => entry.id));
+}
+
+function notifyNewRemoteEntries(value) {
+  const entries = Array.isArray(value?.entries) ? value.entries : [];
+  for (const entry of entries) {
+    if (remote.knownEntryIds.has(entry.id)) continue;
+    remote.knownEntryIds.add(entry.id);
+    if (entry.sourceId === clientId) continue;
+    const member = (value.members || state.members || []).find((item) => item.id === entry.memberId);
+    const name = member?.name || "有人";
+    const body = entry.note ? `${name} 大了：${entry.note}` : `${name} 大了`;
+    showSystemNotification("健康生活新紀錄", body);
+  }
 }
 
 function removeLatestEntryForMember(memberId) {
@@ -809,6 +865,7 @@ function showUpdateNoticeIfNeeded() {
   els.updateTitle.textContent = `版本更新 ${APP_VERSION}`;
   els.updateNotes.innerHTML = updateNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join("");
   els.updateDialog.showModal();
+  showSystemNotification(`健康生活已更新 ${APP_VERSION}`, updateNotes.join(" / "));
 }
 
 function showMonthlyNoticeIfNeeded(date = new Date()) {
@@ -895,12 +952,16 @@ async function initRemoteSync() {
     const firstSnapshot = await get(remote.ref);
     if (!firstSnapshot.exists()) {
       await set(remote.ref, sharedState());
+      rememberEntryIds(state.entries);
     } else {
+      rememberEntryIds(firstSnapshot.val().entries);
       applyRemoteState(firstSnapshot.val());
     }
 
     remote.unsubscribe = onValue(remote.ref, (snapshot) => {
-      if (snapshot.exists()) applyRemoteState(snapshot.val());
+      if (!snapshot.exists()) return;
+      notifyNewRemoteEntries(snapshot.val());
+      applyRemoteState(snapshot.val());
     });
     remote.ready = true;
     renderSyncState();
@@ -999,22 +1060,14 @@ els.saveRoomButton.addEventListener("click", async () => {
   showToast(firebaseConfig?.databaseURL ? `已切到房間：${roomCode}` : "要先填 Firebase 設定才會同步");
 });
 
-els.leaderboard.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-adjust]");
-  if (!button) return;
+els.enableNotificationsButton.addEventListener("click", requestNotificationPermission);
 
-  const memberId = button.dataset.member;
-  const amount = Number(button.dataset.adjust);
+els.deductEntryButton.addEventListener("click", () => {
+  const memberId = els.entryMember.value;
   const member = getMember(memberId);
   if (!member) return;
-
-  if (amount > 0) {
-    addEntry({ memberId, note: "手動調整" });
-    showToast(`${member.name} 已加 1`);
-    return;
-  }
-
   const removed = removeLatestEntryForMember(memberId);
+  if (removed) els.entryDialog.close();
   showToast(removed ? `${member.name} 已扣 1` : `${member.name} 本季沒有可扣紀錄`);
 });
 

@@ -315,25 +315,6 @@ input[type="color"] {
   padding: 12px;
 }
 
-.rank-controls {
-  display: grid;
-  grid-template-columns: 36px auto 36px;
-  align-items: center;
-  gap: 8px;
-}
-
-.mini-adjust {
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 999px;
-  background: #edf3ef;
-  color: var(--green);
-  border: 1px solid var(--line);
-  font-size: 20px;
-  line-height: 1;
-}
-
 .rank-badge {
   width: 44px;
   height: 44px;
@@ -506,7 +487,7 @@ dialog::backdrop {
 
 .dialog-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -704,15 +685,6 @@ dialog::backdrop {
 
   .rank-row {
     grid-template-columns: auto 1fr;
-  }
-
-  .rank-controls {
-    grid-column: 1 / -1;
-    grid-template-columns: 44px 1fr 44px;
-  }
-
-  .rank-controls .count {
-    text-align: center;
   }
 
   .season-feed-panel summary {
