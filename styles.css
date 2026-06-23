@@ -320,6 +320,14 @@ input[type="color"] {
   margin-top: 3px;
 }
 
+.last-note {
+  margin-top: 6px;
+  color: #2f5d52;
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
 .count {
   font-size: 34px;
   line-height: 1;
@@ -476,6 +484,18 @@ dialog::backdrop {
   margin: 0 0 12px;
   font-size: 18px;
   line-height: 1.35;
+}
+
+.history-card [contenteditable="true"] {
+  border-radius: 6px;
+  outline: 2px solid transparent;
+  padding: 2px 4px;
+  margin-left: -4px;
+  background: #fff7df;
+}
+
+.history-card [contenteditable="true"]:focus {
+  outline-color: rgba(243, 178, 60, 0.62);
 }
 
 .history-list {

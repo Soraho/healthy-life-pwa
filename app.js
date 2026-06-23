@@ -1,18 +1,37 @@
-import { firebaseConfig } from "./firebase-config.js";
-
 const STORAGE_KEY = "healthy-life-pwa-v2";
 const ROOM_KEY = "healthy-life-room-code";
 const DEFAULT_ROOM = "healthy-life";
 
 const defaultMembers = [
   ["yy", "汪圓圓", "#2f7d67"],
-  ["zt", "劉芷婷", "#ff6f59"],
+  ["zt", "劉暫停", "#ff6f59"],
   ["wl", "糾結倫", "#486a9a"],
   ["yz", "陳疑針", "#f3b23c"],
-  ["hx", "林翰詳", "#6d5bd0"],
+  ["hx", "心悸小子", "#6d5bd0"],
   ["ww", "宋葳葳", "#d95f8a"],
   ["xy", "祐拉屎", "#178f93"],
 ];
+
+const canonicalMemberNames = {
+  yy: "汪圓圓",
+  zt: "劉暫停",
+  wl: "糾結倫",
+  yz: "陳疑針",
+  hx: "心悸小子",
+  ww: "宋葳葳",
+  xy: "祐拉屎",
+};
+
+const currentSeasonSeed = {
+  key: "season-21-current",
+  entries: [
+    { memberId: "wl", count: 2, note: "忘記" },
+    { memberId: "zt", count: 2, note: "" },
+    { memberId: "ww", count: 3, note: "" },
+    { memberId: "yz", count: 2, note: "" },
+    { memberId: "yy", count: 3, note: "" },
+  ],
+};
 
 const topTitles = [
   "斷檔第一，大拉特拉總冠軍",
@@ -24,6 +43,16 @@ const fallbackTitles = [
   "黑馬追進度",
   "壓線一大代表",
   "還在朝健康生活邁進",
+];
+
+const autoSettlementTitles = [
+  "屎無前例",
+  "一便惜敗",
+  "健康守護神",
+  "黑馬追進度",
+  "穩定發揮",
+  "還在朝健康生活邁進",
+  "祐沒有忘記",
 ];
 
 const seasonHistory = [
@@ -216,6 +245,42 @@ const seasonHistory = [
       ["", "台科王子", "祐祐", "2"],
     ],
   },
+  {
+    title: "第1️⃣8️⃣季",
+    rows: [
+      ["", "帶心拉屎候補", "心悸小子", "18"],
+      ["🥇", "超爽登頂", "糾結倫", "34"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
+      ["", "穩定發揮", "劉暫停", "20"],
+      ["🥈", "葳持水準", "宋葳葳", "28"],
+      ["", "一針見血", "陳疑針", "24"],
+      ["🥉", "差一點點", "汪圓圓", "29"],
+    ],
+  },
+  {
+    title: "第1️⃣9️⃣季",
+    rows: [
+      ["", "帶心拉屎🫀", "心悸小子", "22"],
+      ["", "平分秋色", "糾結倫", "22"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
+      ["", "三個 22", "劉暫停", "22"],
+      ["🥈", "一便領先", "宋葳葳", "23"],
+      ["", "差兩便", "陳疑針", "21"],
+      ["🥇", "圓圓登頂", "汪圓圓", "29"],
+    ],
+  },
+  {
+    title: "第2️⃣0️⃣季",
+    rows: [
+      ["", "心悸小子", "心悸小子", "15"],
+      ["🥈", "穩穩二十六", "糾結倫", "26"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
+      ["", "超大超粗", "劉暫停", "15"],
+      ["", "葳持健康", "宋葳葳", "21"],
+      ["", "急起直追", "陳疑針", "22"],
+      ["🥇", "圓圓再起", "汪圓圓", "25"],
+    ],
+  },
 ];
 
 const $ = (selector) => document.querySelector(selector);
@@ -256,6 +321,7 @@ const els = {
 let deferredInstallPrompt = null;
 let state = loadState();
 let roomCode = localStorage.getItem(ROOM_KEY) || DEFAULT_ROOM;
+let firebaseConfig = null;
 let remote = {
   enabled: false,
   ready: false,
@@ -270,6 +336,8 @@ function loadState() {
   const fallback = {
     members: defaultMembers.map(([id, name, color]) => ({ id, name, color })),
     entries: [],
+    archivedSeasons: [],
+    seedKeys: [],
     activeMemberId: "yy",
   };
 
@@ -281,6 +349,8 @@ function loadState() {
     return {
       ...fallback,
       ...saved,
+      archivedSeasons: Array.isArray(saved.archivedSeasons) ? saved.archivedSeasons : [],
+      seedKeys: Array.isArray(saved.seedKeys) ? saved.seedKeys : [],
       activeMemberId: saved.activeMemberId || saved.members[0]?.id || "yy",
     };
   } catch {
@@ -297,8 +367,52 @@ function sharedState() {
   return {
     members: state.members,
     entries: state.entries,
+    archivedSeasons: state.archivedSeasons,
+    seedKeys: state.seedKeys,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function ensureBaselineData() {
+  let changed = false;
+  const existingIds = new Set(state.members.map((member) => member.id));
+  for (const [id, name, color] of defaultMembers) {
+    if (!existingIds.has(id)) {
+      state.members.push({ id, name, color });
+      changed = true;
+    }
+  }
+
+  state.members = state.members.map((member) => {
+    const nextName = canonicalMemberNames[member.id] || member.name;
+    if (nextName !== member.name) changed = true;
+    return {
+      ...member,
+      name: nextName,
+    };
+  });
+
+  if (!state.seedKeys.includes(currentSeasonSeed.key)) {
+    const { start } = getSeasonBounds();
+    let offset = 0;
+    for (const seed of currentSeasonSeed.entries) {
+      for (let index = 0; index < seed.count; index += 1) {
+        const isLast = index === seed.count - 1;
+        state.entries.push({
+          id: `${currentSeasonSeed.key}-${seed.memberId}-${index + 1}`,
+          memberId: seed.memberId,
+          ts: new Date(start.getFullYear(), start.getMonth(), start.getDate(), 9, offset).toISOString(),
+          note: isLast ? seed.note : "",
+          seedKey: currentSeasonSeed.key,
+        });
+        offset += 7;
+      }
+    }
+    state.seedKeys.push(currentSeasonSeed.key);
+    changed = true;
+  }
+
+  return changed;
 }
 
 function normalizeRoom(value) {
@@ -312,6 +426,18 @@ function getSeasonBounds(date = new Date()) {
   const start = startsThisMonth ? new Date(year, month, 19) : new Date(year, month - 1, 19);
   const end = startsThisMonth ? new Date(year, month + 1, 19) : new Date(year, month, 19);
   return { start, end };
+}
+
+function getPreviousSeasonBounds(date = new Date()) {
+  const { start } = getSeasonBounds(date);
+  return {
+    start: new Date(start.getFullYear(), start.getMonth() - 1, 19),
+    end: start,
+  };
+}
+
+function seasonKey(bounds) {
+  return `${bounds.start.getFullYear()}-${String(bounds.start.getMonth() + 1).padStart(2, "0")}-${String(bounds.start.getDate()).padStart(2, "0")}`;
 }
 
 function isInSeason(entry, bounds = getSeasonBounds()) {
@@ -347,6 +473,10 @@ function seasonEntries() {
   return state.entries.filter((entry) => isInSeason(entry));
 }
 
+function entriesInBounds(bounds) {
+  return state.entries.filter((entry) => isInSeason(entry, bounds));
+}
+
 function countsByMember() {
   const counts = new Map(state.members.map((member) => [member.id, 0]));
   for (const entry of seasonEntries()) {
@@ -363,7 +493,54 @@ function rankedMembers() {
     .sort((a, b) => b.count - a.count || order.get(a.id) - order.get(b.id));
 }
 
+function archivedHistory() {
+  return state.archivedSeasons || [];
+}
+
+function allHistory() {
+  return [...seasonHistory, ...archivedHistory()];
+}
+
+function archivePreviousSeasonIfNeeded() {
+  const bounds = getPreviousSeasonBounds();
+  const key = seasonKey(bounds);
+  if (state.archivedSeasons?.some((season) => season.key === key)) return false;
+
+  const entries = entriesInBounds(bounds);
+  if (!entries.length) return false;
+
+  const counts = new Map(state.members.map((member) => [member.id, 0]));
+  for (const entry of entries) {
+    counts.set(entry.memberId, (counts.get(entry.memberId) || 0) + 1);
+  }
+
+  const order = new Map(state.members.map((member, index) => [member.id, index]));
+  const rows = state.members
+    .map((member) => ({ member, count: counts.get(member.id) || 0 }))
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count || order.get(a.member.id) - order.get(b.member.id))
+    .map((row, index) => ({
+      medal: index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "",
+      title: autoSettlementTitles[index] || autoSettlementTitles.at(-1),
+      name: row.member.name,
+      count: String(row.count),
+    }));
+
+  state.archivedSeasons = [
+    ...(state.archivedSeasons || []),
+    {
+      key,
+      editable: true,
+      title: `自動結算 ${formatMonthDay(bounds.start)}-${formatMonthDay(new Date(bounds.end.getTime() - 1))}`,
+      rows,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  return true;
+}
+
 function render({ fromRemote = false } = {}) {
+  const archivedSeason = archivePreviousSeasonIfNeeded();
   const { start, end } = getSeasonBounds();
   const endInclusive = new Date(end.getTime() - 1);
   const daysLeft = Math.max(0, Math.ceil((end - new Date()) / 86400000));
@@ -382,7 +559,7 @@ function render({ fromRemote = false } = {}) {
   renderToday();
   renderSeasonFeed();
   renderHistory();
-  persistState({ sync: !fromRemote });
+  persistState({ sync: !fromRemote || archivedSeason });
 }
 
 function renderSyncState() {
@@ -412,18 +589,26 @@ function renderLeaderboard() {
   els.leaderboard.innerHTML = rows
     .map((member, index) => {
       const title = topTitles[index] || fallbackTitles[index % fallbackTitles.length];
+      const lastNote = latestNoteForMember(member.id);
       return `
         <li class="rank-row">
           <span class="rank-badge" style="background:${member.color}">${index + 1}</span>
           <div>
             <strong>${escapeHtml(member.name)}</strong>
             <p class="rank-title">${escapeHtml(title)}</p>
+            <p class="last-note">${lastNote ? `上次：${escapeHtml(lastNote)}` : "上次：還沒有備註"}</p>
           </div>
           <div class="count">${member.count}<small> 次</small></div>
         </li>
       `;
     })
     .join("");
+}
+
+function latestNoteForMember(memberId) {
+  return seasonEntries()
+    .filter((entry) => entry.memberId === memberId && entry.note)
+    .sort((a, b) => new Date(b.ts) - new Date(a.ts))[0]?.note;
 }
 
 function formatDateLabel(date) {
@@ -488,29 +673,37 @@ function renderSeasonFeed() {
 }
 
 function renderHistory() {
-  if (!els.historySelect.options.length) {
-    els.historySelect.innerHTML = seasonHistory
-      .map((season, index) => `<option value="${index}">${escapeHtml(season.title)}</option>`)
-      .join("");
-    els.historySelect.value = String(seasonHistory.length - 1);
-  }
+  const history = allHistory();
+  const currentValue = els.historySelect.value;
+  els.historySelect.innerHTML = history
+    .map((season, index) => `<option value="${index}">${escapeHtml(season.title)}</option>`)
+    .join("");
+  els.historySelect.value = currentValue || String(history.length - 1);
 
-  const season = seasonHistory[Number(els.historySelect.value)] || seasonHistory.at(-1);
+  const selectedIndex = Number(els.historySelect.value);
+  const season = history[selectedIndex] || history.at(-1);
+  const isEditable = Boolean(season?.editable);
   els.historyCard.innerHTML = `
-    <h3>${escapeHtml(season.title)}</h3>
+    <h3 ${isEditable ? `contenteditable="true" data-edit-season-title="${selectedIndex}"` : ""}>${escapeHtml(season.title)}</h3>
     <ol class="history-list">
       ${season.rows
         .map(
-          ([medal, title, name, count]) => `
+          (row, rowIndex) => {
+            const medal = Array.isArray(row) ? row[0] : row.medal;
+            const title = Array.isArray(row) ? row[1] : row.title;
+            const name = Array.isArray(row) ? row[2] : row.name;
+            const count = Array.isArray(row) ? row[3] : row.count;
+            return `
             <li>
               <span class="history-medal">${escapeHtml(medal || "•")}</span>
               <div>
-                <strong>${escapeHtml(title)}</strong>
+                <strong ${isEditable ? `contenteditable="true" data-edit-row-title="${rowIndex}"` : ""}>${escapeHtml(title)}</strong>
                 <p>${escapeHtml(name)}</p>
               </div>
               <span class="history-count">${escapeHtml(count)}</span>
             </li>
-          `
+          `;
+          }
         )
         .join("")}
     </ol>
@@ -560,6 +753,10 @@ function queueRemoteSave() {
       showToast("同步失敗，先存在這支手機");
     }
   }, 260);
+}
+
+async function loadFirebaseConfig() {
+  firebaseConfig = globalThis.HEALTHY_LIFE_FIREBASE_CONFIG || null;
 }
 
 async function initRemoteSync() {
@@ -615,9 +812,13 @@ function applyRemoteState(value) {
     ...state,
     members: value.members,
     entries: value.entries,
+    archivedSeasons: Array.isArray(value.archivedSeasons) ? value.archivedSeasons : state.archivedSeasons || [],
+    seedKeys: Array.isArray(value.seedKeys) ? value.seedKeys : state.seedKeys || [],
   };
+  const changed = ensureBaselineData();
   render({ fromRemote: true });
   remote.applying = false;
+  if (changed) persistState();
 }
 
 els.activeMember.addEventListener("change", () => {
@@ -626,6 +827,34 @@ els.activeMember.addEventListener("change", () => {
 });
 
 els.historySelect.addEventListener("change", renderHistory);
+
+els.historyCard.addEventListener("blur", (event) => {
+  const titleIndex = event.target.dataset.editSeasonTitle;
+  const rowIndex = event.target.dataset.editRowTitle;
+  if (titleIndex === undefined && rowIndex === undefined) return;
+
+  const staticCount = seasonHistory.length;
+  const selectedIndex = Number(els.historySelect.value);
+  const archivedIndex = selectedIndex - staticCount;
+  const archivedSeason = state.archivedSeasons?.[archivedIndex];
+  if (!archivedSeason?.editable) return;
+
+  const value = event.target.textContent.trim();
+  if (!value) {
+    renderHistory();
+    return;
+  }
+
+  if (titleIndex !== undefined) {
+    archivedSeason.title = value;
+  }
+  if (rowIndex !== undefined) {
+    archivedSeason.rows[Number(rowIndex)].title = value;
+  }
+
+  persistState();
+  renderHistory();
+}, true);
 
 els.saveRoomButton.addEventListener("click", async () => {
   roomCode = normalizeRoom(els.roomCode.value);
@@ -667,6 +896,7 @@ els.saveEntryButton.addEventListener("click", () => {
     ts: new Date(rawTime).toISOString(),
     note: els.entryNote.value,
   });
+  els.entryNote.value = "";
   els.entryDialog.close();
   showToast("補記完成");
 });
@@ -767,5 +997,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
 }
 
+ensureBaselineData();
 render({ fromRemote: true });
-initRemoteSync();
+loadFirebaseConfig().then(initRemoteSync);

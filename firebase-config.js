@@ -1,11 +1,12 @@
-export const firebaseConfig = null;
+globalThis.HEALTHY_LIFE_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBgjVQ2LHI9GXQ7X_2Tr3JLIuAvSkuamU",
+  authDomain: "healthy-life-pwa-4fec1.firebaseapp.com",
+  databaseURL: "https://healthy-life-pwa-4fec1-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "healthy-life-pwa-4fec1",
+  storageBucket: "healthy-life-pwa-4fec1.firebasestorage.app",
+  messagingSenderId: "541445370848",
+  appId: "1:541445370848:web:301f0f6e39c47d3fc57185",
+  measurementId: "G-BMYDE86E2R"
+};
 
-// 要讓大家各自手機同步，把上面 null 換成 Firebase Realtime Database 的設定：
-//
-// export const firebaseConfig = {
-//   apiKey: "你的 apiKey",
-//   authDomain: "你的專案.firebaseapp.com",
-//   databaseURL: "https://你的專案-default-rtdb.firebaseio.com",
-//   projectId: "你的專案",
-//   appId: "你的 appId"
-// };
+// Firebase Realtime Database sync is enabled when this object is filled.
