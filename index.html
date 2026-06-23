@@ -82,13 +82,17 @@
         </section>
 
         <section class="season-feed-section" aria-labelledby="seasonFeedTitle">
-          <div class="section-heading">
-            <div>
-              <p class="label">賽況</p>
-              <h2 id="seasonFeedTitle">當季賽況</h2>
-            </div>
-          </div>
-          <ul class="season-feed" id="seasonFeed"></ul>
+          <details class="season-feed-panel">
+            <summary>
+              <span>
+                <span class="label">賽況</span>
+                <strong id="seasonFeedTitle">當季賽況</strong>
+              </span>
+              <span id="seasonFeedSummary">展開戰報</span>
+            </summary>
+            <div class="feed-highlights" id="feedHighlights"></div>
+            <ul class="season-feed" id="seasonFeed"></ul>
+          </details>
         </section>
 
         <section class="history-section" aria-labelledby="historyTitle">
@@ -123,7 +127,6 @@
             匯入備份
             <input id="importInput" type="file" accept="application/json" />
           </label>
-          <button id="resetSeasonButton" type="button">清空本期</button>
         </section>
       </main>
     </div>

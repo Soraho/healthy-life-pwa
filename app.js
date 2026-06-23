@@ -297,6 +297,8 @@ const els = {
   leaderboard: $("#leaderboard"),
   todayList: $("#todayList"),
   seasonFeed: $("#seasonFeed"),
+  seasonFeedSummary: $("#seasonFeedSummary"),
+  feedHighlights: $("#feedHighlights"),
   historySelect: $("#historySelect"),
   historyCard: $("#historyCard"),
   roomCode: $("#roomCode"),
@@ -305,7 +307,6 @@ const els = {
   addMemberButton: $("#addMemberButton"),
   exportButton: $("#exportButton"),
   importInput: $("#importInput"),
-  resetSeasonButton: $("#resetSeasonButton"),
   entryDialog: $("#entryDialog"),
   memberDialog: $("#memberDialog"),
   entryTime: $("#entryTime"),
@@ -598,7 +599,11 @@ function renderLeaderboard() {
             <p class="rank-title">${escapeHtml(title)}</p>
             <p class="last-note">${lastNote ? `上次：${escapeHtml(lastNote)}` : "上次：還沒有備註"}</p>
           </div>
-          <div class="count">${member.count}<small> 次</small></div>
+          <div class="rank-controls">
+            <button class="mini-adjust" data-adjust="-1" data-member="${member.id}" type="button" aria-label="${escapeHtml(member.name)}減一">−</button>
+            <div class="count">${member.count}<small> 次</small></div>
+            <button class="mini-adjust" data-adjust="1" data-member="${member.id}" type="button" aria-label="${escapeHtml(member.name)}加一">＋</button>
+          </div>
         </li>
       `;
     })
@@ -646,6 +651,17 @@ function renderToday() {
 
 function renderSeasonFeed() {
   const entries = seasonEntries().sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  const notedEntries = entries.filter((entry) => entry.note).slice(0, 3);
+  els.seasonFeedSummary.textContent = entries.length ? `${entries.length} 次，${notedEntries.length} 則近況` : "本季尚未開胡";
+
+  els.feedHighlights.innerHTML = notedEntries.length
+    ? notedEntries
+        .map((entry) => {
+          const member = getMember(entry.memberId);
+          return `<span>${escapeHtml(member?.name || "神秘成員")}：${escapeHtml(entry.note)}</span>`;
+        })
+        .join("")
+    : `<span>目前沒有留言，只有靜靜累積的健康生活</span>`;
 
   if (!entries.length) {
     els.seasonFeed.innerHTML = `<li class="timeline-row empty">本季還沒有人開胡</li>`;
@@ -720,6 +736,18 @@ function addEntry({ memberId = state.activeMemberId, ts = new Date().toISOString
   });
   state.activeMemberId = memberId;
   render();
+}
+
+function removeLatestEntryForMember(memberId) {
+  const latestIndex = [...state.entries]
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => entry.memberId === memberId && isInSeason(entry))
+    .sort((a, b) => new Date(b.entry.ts) - new Date(a.entry.ts))[0]?.index;
+
+  if (latestIndex === undefined) return false;
+  state.entries.splice(latestIndex, 1);
+  render();
+  return true;
 }
 
 function openEntryDialog({ withNote = false } = {}) {
@@ -863,6 +891,25 @@ els.saveRoomButton.addEventListener("click", async () => {
   showToast(firebaseConfig?.databaseURL ? `已切到房間：${roomCode}` : "要先填 Firebase 設定才會同步");
 });
 
+els.leaderboard.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-adjust]");
+  if (!button) return;
+
+  const memberId = button.dataset.member;
+  const amount = Number(button.dataset.adjust);
+  const member = getMember(memberId);
+  if (!member) return;
+
+  if (amount > 0) {
+    addEntry({ memberId, note: "手動調整" });
+    showToast(`${member.name} 已加 1`);
+    return;
+  }
+
+  const removed = removeLatestEntryForMember(memberId);
+  showToast(removed ? `${member.name} 已扣 1` : `${member.name} 本季沒有可扣紀錄`);
+});
+
 els.quickAdd.addEventListener("click", () => {
   addEntry({ note: els.quickNote.value });
   els.quickNote.value = "";
@@ -969,14 +1016,6 @@ els.importInput.addEventListener("change", async () => {
   } finally {
     els.importInput.value = "";
   }
-});
-
-els.resetSeasonButton.addEventListener("click", () => {
-  const ok = confirm("要清空本期紀錄嗎？以前期數會保留。");
-  if (!ok) return;
-  state.entries = state.entries.filter((entry) => !isInSeason(entry));
-  render();
-  showToast("本期已清空");
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {

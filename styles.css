@@ -302,6 +302,25 @@ input[type="color"] {
   padding: 12px;
 }
 
+.rank-controls {
+  display: grid;
+  grid-template-columns: 36px auto 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-adjust {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  background: #edf3ef;
+  color: var(--green);
+  border: 1px solid var(--line);
+  font-size: 20px;
+  line-height: 1;
+}
+
 .rank-badge {
   width: 44px;
   height: 44px;
@@ -345,6 +364,56 @@ input[type="color"] {
 .feed-row {
   grid-template-columns: auto 1fr auto;
   align-items: start;
+}
+
+.season-feed-panel {
+  display: block;
+}
+
+.season-feed-panel summary {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.season-feed-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.season-feed-panel summary strong {
+  display: block;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+#seasonFeedSummary {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--green);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.feed-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.feed-highlights span {
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: #fff7df;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
 }
 
 .feed-avatar {
@@ -600,5 +669,26 @@ dialog::backdrop {
 
   .history-card h3 {
     font-size: 16px;
+  }
+
+  .rank-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .rank-controls {
+    grid-column: 1 / -1;
+    grid-template-columns: 44px 1fr 44px;
+  }
+
+  .rank-controls .count {
+    text-align: center;
+  }
+
+  .season-feed-panel summary {
+    grid-template-columns: 1fr;
+  }
+
+  #seasonFeedSummary {
+    width: fit-content;
   }
 }
