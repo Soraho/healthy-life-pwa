@@ -80,11 +80,24 @@ button:active,
   gap: 12px;
 }
 
+.brand-mark-button {
+  min-width: 52px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: 0 8px 24px rgba(34, 65, 58, 0.2);
+  overflow: hidden;
+}
+
 .brand-mark {
   width: 52px;
   height: 52px;
+  display: block;
+  object-fit: cover;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(34, 65, 58, 0.2);
 }
 
 h1,
@@ -497,9 +510,27 @@ dialog::backdrop {
   gap: 10px;
 }
 
+.dialog-actions.single {
+  grid-template-columns: 1fr;
+}
+
 .dialog-actions button:first-child {
   background: #edf3ef;
   color: var(--green);
+}
+
+.notice-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.notice-list li,
+.notice-panel p {
+  color: var(--ink);
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .toast {

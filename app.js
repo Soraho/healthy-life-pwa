@@ -1,6 +1,15 @@
 const STORAGE_KEY = "healthy-life-pwa-v2";
 const ROOM_KEY = "healthy-life-room-code";
 const DEFAULT_ROOM = "healthy-life";
+const APP_VERSION = "2026.06.23.4";
+const VERSION_SEEN_KEY = "healthy-life-seen-version";
+const MONTHLY_NOTICE_KEY = "healthy-life-monthly-notice";
+
+const updateNotes = [
+  "左上角圖示可以點擊更換，更新後會同步給同房間的人。",
+  "當季賽況改成可收合戰報，介面比較不會被紀錄淹沒。",
+  "18 號會提醒最後衝刺，19 號會提醒新排行榜出爐。",
+];
 
 const defaultMembers = [
   ["yy", "汪圓圓", "#2f7d67"],
@@ -248,37 +257,37 @@ const seasonHistory = [
   {
     title: "第1️⃣8️⃣季",
     rows: [
-      ["", "帶心拉屎候補", "心悸小子", "18"],
       ["🥇", "超爽登頂", "糾結倫", "34"],
-      ["", "祐拉屎", "祐拉屎", "未知"],
-      ["", "穩定發揮", "劉暫停", "20"],
-      ["🥈", "葳持水準", "宋葳葳", "28"],
+      ["🥈", "差一點點", "汪圓圓", "29"],
+      ["🥉", "葳持水準", "宋葳葳", "28"],
       ["", "一針見血", "陳疑針", "24"],
-      ["🥉", "差一點點", "汪圓圓", "29"],
+      ["", "穩定發揮", "劉暫停", "20"],
+      ["", "帶心拉屎候補", "心悸小子", "18"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
     ],
   },
   {
     title: "第1️⃣9️⃣季",
     rows: [
-      ["", "帶心拉屎🫀", "心悸小子", "22"],
-      ["", "平分秋色", "糾結倫", "22"],
-      ["", "祐拉屎", "祐拉屎", "未知"],
-      ["", "三個 22", "劉暫停", "22"],
-      ["🥈", "一便領先", "宋葳葳", "23"],
-      ["", "差兩便", "陳疑針", "21"],
       ["🥇", "圓圓登頂", "汪圓圓", "29"],
+      ["🥈", "一便領先", "宋葳葳", "23"],
+      ["🥉", "帶心拉屎🫀", "心悸小子", "22"],
+      ["", "平分秋色", "糾結倫", "22"],
+      ["", "三個 22", "劉暫停", "22"],
+      ["", "差兩便", "陳疑針", "21"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
     ],
   },
   {
     title: "第2️⃣0️⃣季",
     rows: [
-      ["", "心悸小子", "心悸小子", "15"],
-      ["🥈", "穩穩二十六", "糾結倫", "26"],
-      ["", "祐拉屎", "祐拉屎", "未知"],
-      ["", "超大超粗", "劉暫停", "15"],
+      ["🥇", "穩穩二十六", "糾結倫", "26"],
+      ["🥈", "圓圓再起", "汪圓圓", "25"],
+      ["🥉", "急起直追", "陳疑針", "22"],
       ["", "葳持健康", "宋葳葳", "21"],
-      ["", "急起直追", "陳疑針", "22"],
-      ["🥇", "圓圓再起", "汪圓圓", "25"],
+      ["", "心悸小子", "心悸小子", "15"],
+      ["", "超大超粗", "劉暫停", "15"],
+      ["", "祐拉屎", "祐拉屎", "未知"],
     ],
   },
 ];
@@ -307,6 +316,17 @@ const els = {
   addMemberButton: $("#addMemberButton"),
   exportButton: $("#exportButton"),
   importInput: $("#importInput"),
+  iconUploadButton: $("#iconUploadButton"),
+  iconUploadInput: $("#iconUploadInput"),
+  brandIcon: $("#brandIcon"),
+  updateDialog: $("#updateDialog"),
+  updateTitle: $("#updateTitle"),
+  updateNotes: $("#updateNotes"),
+  closeUpdateButton: $("#closeUpdateButton"),
+  monthlyNoticeDialog: $("#monthlyNoticeDialog"),
+  monthlyNoticeTitle: $("#monthlyNoticeTitle"),
+  monthlyNoticeBody: $("#monthlyNoticeBody"),
+  closeMonthlyNoticeButton: $("#closeMonthlyNoticeButton"),
   entryDialog: $("#entryDialog"),
   memberDialog: $("#memberDialog"),
   entryTime: $("#entryTime"),
@@ -339,6 +359,7 @@ function loadState() {
     entries: [],
     archivedSeasons: [],
     seedKeys: [],
+    appIcon: "",
     activeMemberId: "yy",
   };
 
@@ -352,6 +373,7 @@ function loadState() {
       ...saved,
       archivedSeasons: Array.isArray(saved.archivedSeasons) ? saved.archivedSeasons : [],
       seedKeys: Array.isArray(saved.seedKeys) ? saved.seedKeys : [],
+      appIcon: saved.appIcon || "",
       activeMemberId: saved.activeMemberId || saved.members[0]?.id || "yy",
     };
   } catch {
@@ -370,6 +392,7 @@ function sharedState() {
     entries: state.entries,
     archivedSeasons: state.archivedSeasons,
     seedKeys: state.seedKeys,
+    appIcon: state.appIcon || "",
     updatedAt: new Date().toISOString(),
   };
 }
@@ -553,6 +576,7 @@ function render({ fromRemote = false } = {}) {
   els.periodLabel.textContent = `${formatMonthDay(start)} - ${formatMonthDay(endInclusive)}`;
   els.daysLeft.textContent = String(daysLeft);
   els.roomCode.value = roomCode;
+  renderAppIcon();
 
   renderSyncState();
   renderMemberSelects();
@@ -561,6 +585,10 @@ function render({ fromRemote = false } = {}) {
   renderSeasonFeed();
   renderHistory();
   persistState({ sync: !fromRemote || archivedSeason });
+}
+
+function renderAppIcon() {
+  els.brandIcon.src = state.appIcon || "./assets/icon.svg";
 }
 
 function renderSyncState() {
@@ -750,6 +778,56 @@ function removeLatestEntryForMember(memberId) {
   return true;
 }
 
+function resizeImageToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("image failed"));
+      image.onload = () => {
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = size;
+        canvas.height = size;
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showUpdateNoticeIfNeeded() {
+  if (localStorage.getItem(VERSION_SEEN_KEY) === APP_VERSION) return;
+  els.updateTitle.textContent = `版本更新 ${APP_VERSION}`;
+  els.updateNotes.innerHTML = updateNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join("");
+  els.updateDialog.showModal();
+}
+
+function showMonthlyNoticeIfNeeded(date = new Date()) {
+  const day = date.getDate();
+  if (day !== 18 && day !== 19) return;
+  const key = `${date.getFullYear()}-${date.getMonth() + 1}-${day}`;
+  if (localStorage.getItem(MONTHLY_NOTICE_KEY) === key) return;
+
+  if (day === 18) {
+    els.monthlyNoticeTitle.textContent = "最後衝刺日";
+    els.monthlyNoticeBody.textContent = "今天是本季最後一天，請把握機會猛拉狂拉，該補記的不要客氣。";
+  } else {
+    els.monthlyNoticeTitle.textContent = "新排行榜出爐";
+    els.monthlyNoticeBody.textContent = "新的一季開始了，上一季會自動結算，大家可以開始新一輪健康生活。";
+  }
+
+  els.monthlyNoticeDialog.dataset.noticeKey = key;
+  els.monthlyNoticeDialog.showModal();
+}
+
 function openEntryDialog({ withNote = false } = {}) {
   els.entryMember.value = state.activeMemberId;
   els.entryTime.value = formatDateTimeLocal(new Date());
@@ -842,6 +920,7 @@ function applyRemoteState(value) {
     entries: value.entries,
     archivedSeasons: Array.isArray(value.archivedSeasons) ? value.archivedSeasons : state.archivedSeasons || [],
     seedKeys: Array.isArray(value.seedKeys) ? value.seedKeys : state.seedKeys || [],
+    appIcon: value.appIcon || state.appIcon || "",
   };
   const changed = ensureBaselineData();
   render({ fromRemote: true });
@@ -855,6 +934,35 @@ els.activeMember.addEventListener("change", () => {
 });
 
 els.historySelect.addEventListener("change", renderHistory);
+
+els.iconUploadButton.addEventListener("click", () => {
+  els.iconUploadInput.click();
+});
+
+els.iconUploadInput.addEventListener("change", async () => {
+  const file = els.iconUploadInput.files?.[0];
+  if (!file) return;
+  try {
+    state.appIcon = await resizeImageToDataUrl(file);
+    render();
+    showToast("圖示已更新");
+  } catch {
+    showToast("這張圖讀不起來");
+  } finally {
+    els.iconUploadInput.value = "";
+  }
+});
+
+els.closeUpdateButton.addEventListener("click", () => {
+  localStorage.setItem(VERSION_SEEN_KEY, APP_VERSION);
+  els.updateDialog.close();
+});
+
+els.closeMonthlyNoticeButton.addEventListener("click", () => {
+  const key = els.monthlyNoticeDialog.dataset.noticeKey;
+  if (key) localStorage.setItem(MONTHLY_NOTICE_KEY, key);
+  els.monthlyNoticeDialog.close();
+});
 
 els.historyCard.addEventListener("blur", (event) => {
   const titleIndex = event.target.dataset.editSeasonTitle;
@@ -1038,4 +1146,6 @@ if ("serviceWorker" in navigator) {
 
 ensureBaselineData();
 render({ fromRemote: true });
+showUpdateNoticeIfNeeded();
+showMonthlyNoticeIfNeeded();
 loadFirebaseConfig().then(initRemoteSync);

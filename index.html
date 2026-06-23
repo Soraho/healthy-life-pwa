@@ -14,7 +14,10 @@
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">
-          <img src="./assets/icon.svg" alt="" class="brand-mark" />
+          <button class="brand-mark-button" id="iconUploadButton" type="button" aria-label="更換圖示" title="更換圖示">
+            <img src="./assets/icon.svg" alt="" class="brand-mark" id="brandIcon" />
+          </button>
+          <input id="iconUploadInput" type="file" accept="image/*" hidden />
           <div>
             <p class="eyebrow">每月 19-18 號一季</p>
             <h1>健康生活</h1>
@@ -167,6 +170,26 @@
         <div class="dialog-actions">
           <button value="cancel" type="submit">取消</button>
           <button id="saveMemberButton" value="default" type="button">加入</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="updateDialog">
+      <form method="dialog" class="dialog-panel">
+        <h2 id="updateTitle">版本更新</h2>
+        <ul class="notice-list" id="updateNotes"></ul>
+        <div class="dialog-actions single">
+          <button id="closeUpdateButton" value="default" type="button">知道了</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="monthlyNoticeDialog">
+      <form method="dialog" class="dialog-panel notice-panel">
+        <h2 id="monthlyNoticeTitle">健康生活提醒</h2>
+        <p id="monthlyNoticeBody"></p>
+        <div class="dialog-actions single">
+          <button id="closeMonthlyNoticeButton" value="default" type="button">收到</button>
         </div>
       </form>
     </dialog>
