@@ -805,6 +805,7 @@ function resizeImageToDataUrl(file) {
 
 function showUpdateNoticeIfNeeded() {
   if (localStorage.getItem(VERSION_SEEN_KEY) === APP_VERSION) return;
+  localStorage.setItem(VERSION_SEEN_KEY, APP_VERSION);
   els.updateTitle.textContent = `版本更新 ${APP_VERSION}`;
   els.updateNotes.innerHTML = updateNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join("");
   els.updateDialog.showModal();
@@ -954,7 +955,6 @@ els.iconUploadInput.addEventListener("change", async () => {
 });
 
 els.closeUpdateButton.addEventListener("click", () => {
-  localStorage.setItem(VERSION_SEEN_KEY, APP_VERSION);
   els.updateDialog.close();
 });
 
