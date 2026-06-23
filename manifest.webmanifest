@@ -1,0 +1,17 @@
+{
+  "name": "健康生活",
+  "short_name": "健康生活",
+  "description": "朋友一起用的每月便便次數紀錄 PWA。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fffaf0",
+  "theme_color": "#22413a",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#22413a" />
+    <title>健康生活</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img src="./assets/icon.svg" alt="" class="brand-mark" />
+          <div>
+            <p class="eyebrow">每月 18 號換季</p>
+            <h1>健康生活</h1>
+          </div>
+        </div>
+        <button class="icon-button" id="installButton" hidden aria-label="安裝到主畫面" title="安裝">
+          <span aria-hidden="true">⬇</span>
+        </button>
+      </header>
+
+      <main>
+        <section class="status-band">
+          <div>
+            <p class="label">本期</p>
+            <h2 id="periodLabel">載入中</h2>
+            <p class="sync-state" id="syncState">單機模式</p>
+          </div>
+          <div class="season-chip">
+            <span id="daysLeft">--</span>
+            <small>天後刷新</small>
+          </div>
+        </section>
+
+        <section class="tap-zone" aria-labelledby="quickAddTitle">
+          <div class="active-picker">
+            <label for="activeMember">今天是誰要健康生活</label>
+            <select id="activeMember"></select>
+          </div>
+          <button class="big-poop-button" id="quickAdd" type="button">
+            <span class="button-icon" aria-hidden="true">＋</span>
+            <span>
+              <strong id="quickAddTitle">我大了</strong>
+              <small>點一下就加 1</small>
+            </span>
+          </button>
+          <div class="quick-actions">
+            <button id="addNoteButton" type="button">補一句</button>
+            <button id="undoButton" type="button">扣回剛剛那次</button>
+          </div>
+        </section>
+
+        <section class="leaderboard-section" aria-labelledby="leaderboardTitle">
+          <div class="section-heading">
+            <div>
+              <p class="label">排行榜</p>
+              <h2 id="leaderboardTitle">本期戰況</h2>
+            </div>
+            <button class="small-button" id="addMemberButton" type="button">新增成員</button>
+          </div>
+          <ol class="leaderboard" id="leaderboard"></ol>
+        </section>
+
+        <section class="today-section" aria-labelledby="todayTitle">
+          <div class="section-heading">
+            <div>
+              <p class="label">今天</p>
+              <h2 id="todayTitle">今日健康回報</h2>
+            </div>
+            <button class="small-button ghost" id="manualAddButton" type="button">補記</button>
+          </div>
+          <ul class="timeline" id="todayList"></ul>
+        </section>
+
+        <section class="history-section" aria-labelledby="historyTitle">
+          <div class="section-heading">
+            <div>
+              <p class="label">歷屆</p>
+              <h2 id="historyTitle">健康生活風雲榜</h2>
+            </div>
+            <select id="historySelect" aria-label="選擇屆數"></select>
+          </div>
+          <article class="history-card" id="historyCard"></article>
+        </section>
+
+        <section class="sync-section" aria-labelledby="syncTitle">
+          <div class="section-heading">
+            <div>
+              <p class="label">同步</p>
+              <h2 id="syncTitle">共享房間</h2>
+            </div>
+            <button class="small-button ghost" id="saveRoomButton" type="button">套用</button>
+          </div>
+          <label>
+            房間碼
+            <input id="roomCode" type="text" maxlength="32" placeholder="例：healthy-life" />
+          </label>
+          <p class="helper-text">同一個 Firebase 設定、同一個房間碼的手機，會看到同一份紀錄。</p>
+        </section>
+
+        <section class="tools-section" aria-label="工具">
+          <button id="exportButton" type="button">匯出備份</button>
+          <label class="import-label">
+            匯入備份
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+          <button id="resetSeasonButton" type="button">清空本期</button>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="entryDialog">
+      <form method="dialog" class="dialog-panel">
+        <h2 id="dialogTitle">補記一次</h2>
+        <label>
+          成員
+          <select id="entryMember"></select>
+        </label>
+        <label>
+          時間
+          <input id="entryTime" type="datetime-local" />
+        </label>
+        <label>
+          備註
+          <input id="entryNote" type="text" maxlength="40" placeholder="例：帶薪拉、壓線一大、咖啡救我" />
+        </label>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">取消</button>
+          <button id="saveEntryButton" value="default" type="button">存起來</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="memberDialog">
+      <form method="dialog" class="dialog-panel">
+        <h2>新增成員</h2>
+        <label>
+          名字
+          <input id="memberName" type="text" maxlength="16" placeholder="例：糾結倫" />
+        </label>
+        <label>
+          代表色
+          <input id="memberColor" type="color" value="#2f7d67" />
+        </label>
+        <div class="dialog-actions">
+          <button value="cancel" type="submit">取消</button>
+          <button id="saveMemberButton" value="default" type="button">加入</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
