@@ -1,12 +1,16 @@
 const STORAGE_KEY = "healthy-life-pwa-v2";
 const ROOM_KEY = "healthy-life-room-code";
 const DEFAULT_ROOM = "healthy-life";
-const APP_VERSION = "2026.06.29.5";
+const APP_VERSION = "2026.06.29.6";
 const VERSION_SEEN_KEY = "healthy-life-seen-version";
 const MONTHLY_NOTICE_KEY = "healthy-life-monthly-notice";
 const CLIENT_ID_KEY = "healthy-life-client-id";
 const RELOAD_ON_UPDATE_KEY = "healthy-life-reloaded-cache";
 const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
+const PUSH_WORKER_URL = "https://healthy-life-push.920319tina.workers.dev";
+const VAPID_PUBLIC_KEY = "BANbuktqTDzgnGVDPvsZYTSWqpN4Vw1peZ13ZLX-zzBgs_3UgRSoT1sKXldmRX40nmsPASFqXMZs4ymi9bTVPAo";
+const PUSH_CONFIG_CACHE = "healthy-life-push-config";
+const PUSH_CONFIG_FILE = "./push-config.json";
 
 const updateNotes = ["拉屎拉到一半突然想到要優化"];
 
@@ -775,24 +779,114 @@ function renderHistory() {
 
 function addEntry({ memberId = state.activeMemberId, ts = new Date().toISOString(), note = "" } = {}) {
   if (!getMember(memberId)) return;
-  state.entries.push({
+  const entry = {
     id: crypto.randomUUID(),
     memberId,
     ts,
     note: note.trim(),
     sourceId: clientId,
-  });
+  };
+  state.entries.push(entry);
   state.activeMemberId = memberId;
   render();
+  sendPushForEntry(entry);
+  return entry;
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+async function savePushConfigForServiceWorker() {
+  if (!("caches" in window)) return;
+  const cache = await caches.open(PUSH_CONFIG_CACHE);
+  await cache.put(
+    new URL(PUSH_CONFIG_FILE, window.location.href).href,
+    new Response(
+      JSON.stringify({
+        workerUrl: PUSH_WORKER_URL,
+        room: roomCode,
+        clientId,
+      }),
+      { headers: { "content-type": "application/json" } }
+    )
+  );
+}
+
+async function registerPushSubscription({ silent = false } = {}) {
+  if (!("Notification" in window)) {
+    if (!silent) showToast("這個瀏覽器不支援通知");
+    return;
+  }
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (!silent) showToast("這支手機不支援真正推播");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    if (!silent) showToast("通知沒有開啟");
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    } catch (error) {
+      const oldSubscription = await registration.pushManager.getSubscription();
+      if (oldSubscription) await oldSubscription.unsubscribe();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+  }
+
+  await savePushConfigForServiceWorker();
+  await fetch(`${PUSH_WORKER_URL}/subscribe`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      room: roomCode,
+      clientId,
+      subscription: subscription.toJSON(),
+    }),
+  });
+
+  if (!silent) showToast("真正推播已啟用");
 }
 
 async function requestNotificationPermission() {
-  if (!("Notification" in window)) {
-    showToast("這個瀏覽器不支援通知");
-    return;
+  try {
+    await registerPushSubscription();
+  } catch {
+    showToast("推播註冊失敗，稍後再試一次");
   }
-  const permission = await Notification.requestPermission();
-  showToast(permission === "granted" ? "通知已啟用" : "通知沒有開啟");
+}
+
+function sendPushForEntry(entry) {
+  if (!entry?.sourceId || !PUSH_WORKER_URL) return;
+  const member = getMember(entry.memberId);
+  const name = member?.name || "有人";
+  const body = entry.note ? `${name} 大了：${entry.note}` : `${name} 大了`;
+  fetch(`${PUSH_WORKER_URL}/notify`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      room: roomCode,
+      sourceId: clientId,
+      title: "健康生活新紀錄",
+      body,
+    }),
+  }).catch(() => {});
 }
 
 async function showSystemNotification(title, body) {
@@ -1078,6 +1172,7 @@ els.saveRoomButton.addEventListener("click", async () => {
   roomCode = normalizeRoom(els.roomCode.value);
   localStorage.setItem(ROOM_KEY, roomCode);
   await initRemoteSync();
+  if ("Notification" in window && Notification.permission === "granted") registerPushSubscription({ silent: true });
   showToast(firebaseConfig?.databaseURL ? `已切到房間：${roomCode}` : "要先填 Firebase 設定才會同步");
 });
 
@@ -1266,3 +1361,6 @@ render({ fromRemote: true });
 showUpdateNoticeIfNeeded();
 showMonthlyNoticeIfNeeded();
 loadFirebaseConfig().then(initRemoteSync);
+if ("Notification" in window && Notification.permission === "granted") {
+  registerPushSubscription({ silent: true });
+}
