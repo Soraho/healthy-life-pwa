@@ -1,11 +1,12 @@
 const STORAGE_KEY = "healthy-life-pwa-v2";
 const ROOM_KEY = "healthy-life-room-code";
 const DEFAULT_ROOM = "healthy-life";
-const APP_VERSION = "2026.06.29.4";
+const APP_VERSION = "2026.06.29.5";
 const VERSION_SEEN_KEY = "healthy-life-seen-version";
 const MONTHLY_NOTICE_KEY = "healthy-life-monthly-notice";
 const CLIENT_ID_KEY = "healthy-life-client-id";
 const RELOAD_ON_UPDATE_KEY = "healthy-life-reloaded-cache";
+const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
 
 const updateNotes = ["拉屎拉到一半突然想到要優化"];
 
@@ -1213,25 +1214,49 @@ els.installButton.addEventListener("click", async () => {
   els.installButton.hidden = true;
 });
 
+function reloadForAppUpdate(key) {
+  if (els.updateDialog.open) return;
+  if (sessionStorage.getItem(RELOAD_ON_UPDATE_KEY) === key) return;
+  sessionStorage.setItem(RELOAD_ON_UPDATE_KEY, key);
+  window.location.reload();
+}
+
+function watchServiceWorkerRegistration(registration) {
+  registration.addEventListener("updatefound", () => {
+    const worker = registration.installing;
+    if (!worker) return;
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "installed" && navigator.serviceWorker.controller) {
+        reloadForAppUpdate(`installed-${Date.now()}`);
+      }
+    });
+  });
+}
+
+function checkForAppUpdate(registration) {
+  registration.update().catch(() => {});
+}
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.type !== "APP_UPDATED") return;
-    if (els.updateDialog.open) return;
-    if (sessionStorage.getItem(RELOAD_ON_UPDATE_KEY) === event.data.cacheName) return;
-    sessionStorage.setItem(RELOAD_ON_UPDATE_KEY, event.data.cacheName);
-    window.location.reload();
+    reloadForAppUpdate(event.data.cacheName);
   });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (els.updateDialog.open) return;
-    if (sessionStorage.getItem(RELOAD_ON_UPDATE_KEY) === "controllerchange") return;
-    sessionStorage.setItem(RELOAD_ON_UPDATE_KEY, "controllerchange");
-    window.location.reload();
+    reloadForAppUpdate("controllerchange");
   });
 
-  navigator.serviceWorker.register("./service-worker.js").then((registration) => {
-    registration.update();
-    window.setInterval(() => registration.update(), 60 * 60 * 1000);
+  navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).then((registration) => {
+    watchServiceWorkerRegistration(registration);
+    if (registration.waiting) reloadForAppUpdate("waiting");
+    checkForAppUpdate(registration);
+    window.setInterval(() => checkForAppUpdate(registration), UPDATE_CHECK_INTERVAL);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") checkForAppUpdate(registration);
+    });
+    window.addEventListener("focus", () => checkForAppUpdate(registration));
+    window.addEventListener("online", () => checkForAppUpdate(registration));
   });
 }
 

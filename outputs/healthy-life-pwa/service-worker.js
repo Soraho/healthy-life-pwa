@@ -1,4 +1,4 @@
-const CACHE_NAME = "healthy-life-pwa-v16";
+const CACHE_NAME = "healthy-life-pwa-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,8 +31,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  const isAppFile = url.origin === self.location.origin;
+  const request = isAppFile ? new Request(event.request, { cache: "reload" }) : event.request;
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
